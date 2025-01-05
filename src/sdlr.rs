@@ -1,5 +1,5 @@
-use std::sync::mpsc::Receiver;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::mpsc::{Sender, Receiver};
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::{Arc, Mutex};
 use std::fmt;
 use std::collections::HashMap;
@@ -17,13 +17,14 @@ pub struct Scheduler {
 }
 
 type ID = u64;
-pub enum TaskCommand {
+pub enum TaskCommand<'a> {
 	Add(String, String, u64, u16),
 	Remove(ID),
 	Update(ID, Option<String>, Option<String>, Option<u64>, Option<u16>),
 	List,
 	CheckTime(u64),
-	Json/*用管道来完成*/,
+	FromJson(Vec<String>),
+	ToJson(&'a Sender<StoreToken<'a>>),
 	Exit,
 }
 
@@ -172,13 +173,17 @@ impl SchedulerList {
 					TaskCommand::List => {
 						s.show();
 					},
-					TaskCommand::Json => {
-						let js = s.json();
-						std::thread::sleep(Duration::from_secs(1));
-						println!();
-						for i in js {
+					TaskCommand::FromJson(json) => {
+						for i in json {
 							println!("{i}");
+							// 解析json，生成scheduler
 						}
+					},
+					TaskCommand::ToJson(stx) => {
+						let js = s.json();
+						stx.send(
+							StoreToken::Store(js)
+						).unwrap();
 					},
 					TaskCommand::Exit=> {
 						std::process::exit(0);

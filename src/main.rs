@@ -25,6 +25,8 @@ let st = r#"
 	del			: remove task from gsl
 	update			: update task in gsl
 	show			: show global schedulers 
+	save			: save gsl to file as json
+	load			: load gsl from json file
 "#;
 	println!("{}", st);
 }
@@ -153,15 +155,22 @@ fn show(tx: Sender<TaskCommand>) {
 	).unwrap();
 }
 
-// store用sdr的tx写回json数据，用于构建或者新增SchedulerList
-// sdr用store的tx传输Vec<String>，给store去写入文件
-fn to_json(tx: Sender<TaskCommand>) {
+// map -> store
+fn to_json(tx: Sender<TaskCommand>, stx: Sender<StoreToken>) {
 	tx.send(
-		TaskCommand::Json
+		TaskCommand::ToJson(&stx)
 	).unwrap();
 }
 
-fn cmd(il: &String, tx: Sender<TaskCommand>) {
+// store -> map
+fn from_json(tx: Sender<TaskCommand>, stx: Sender<StoreToken>) {
+	stx.send(
+		StoreToken::Read(&tx)
+	).unwrap();
+}
+
+// 
+fn cmd(il: &String, tx: Sender<TaskCommand>, stx: Sender<StoreToken>) {
 	let s :&str = &il.trim().to_lowercase();
 	match s {
 		"?" | "help" | "h" => {
@@ -183,9 +192,12 @@ fn cmd(il: &String, tx: Sender<TaskCommand>) {
 		"show" => {
 			show(tx);
 		},
-		"json" => {
-			to_json(tx);
-		}
+		"save" => {
+			to_json(tx, stx);
+		},
+		"load" => {
+			// from_json();
+		},
 		_ => {
 			println!("nothing happend..")
 		}
@@ -222,16 +234,26 @@ fn channel_checker(sdr: SchedulerList, rx: Receiver<TaskCommand>) {
 	SchedulerList::monitor_map(sdr, &rx);
 }
 
+fn store_checker(st: Store, rx:Receiver<StoreToken>) {
+	Store::monitor_store(st, &rx);
+}
+
 fn main() {
 	let (tx, rx): (Sender<TaskCommand>, Receiver<TaskCommand>) = channel();
+	let (stx, srx): (Sender<StoreToken>, Receiver<StoreToken>) = channel();
 	let mut line = String::new();
 	let sdr = SchedulerList::new();
 	let g_file = Store::new("scheduler.json");
 	cmd_line();
 	
-	// monitor thread
+	// scheduler list monitor thread
 	spawn(move || {
 		channel_checker(sdr, rx);
+	});
+
+	// monitor store thread
+	spawn(move || {
+		store_checker(g_file, srx);
 	});
 
 	// time thread
@@ -244,9 +266,9 @@ fn main() {
 	loop {
 		if let Ok(_) = io::stdin().read_line(&mut line) {
 			let tx = tx.clone();
-			cmd(&line, tx);
+			let stx = stx.clone();
+			cmd(&line, tx, stx);
 			line.clear();
-
 		} else {
 			println!("read failed");
 		}

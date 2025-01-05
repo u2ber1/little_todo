@@ -9,9 +9,9 @@ pub struct Store {
     file: Option<File>
 }
 
-pub enum StoreToken {
+pub enum StoreToken<'a> {
     Store(Vec<String>),
-    Read,
+    Read(&'a Sender<TaskCommand<'a>>),
     Exit
 }
 
@@ -63,15 +63,26 @@ impl Store {
     }
     // 使用channel来完成
     // 这种交互方式好吗？
-    pub fn monitor_store(&self, tx: &Sender<TaskCommand>, rx: &Receiver<StoreToken>) {
+    pub fn monitor_store(self, rx: &Receiver<StoreToken>) {
         loop {
             while let Ok(i) = rx.recv() {
                 match i {
                     StoreToken::Store(json) => {
                         self.vec_to_file(&json);
                     }
-                    StoreToken::Read => {
-                        println!("{:?}", self.read_to_vec());
+                    StoreToken::Read(tx) => {
+                        // println!("{:?}", self.read_to_vec());
+                        match self.read_to_vec() {
+                            Ok(json) => {
+                                tx.send(
+                                    TaskCommand::FromJson(json)
+                                ).unwrap();
+                            },
+                            Err(e) => {
+                                println!("{e}");
+                                continue;
+                            }
+                        };
                     }
                     StoreToken::Exit => {
                         std::process::exit(-1);
