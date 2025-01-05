@@ -1,4 +1,5 @@
 use noob::sdlr::*;
+use noob::store::*;
 use std::{
 	io::{self, Write}, 
 	process::exit, 

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fmt::{Display};
 use serde_json::to_string;
 use serde::{Deserialize, Serialize};
-use noob::Store;
+use crate::store::StoreToken;
 
 #[derive(Serialize, Deserialize)]
 pub struct Scheduler {
@@ -23,7 +23,7 @@ pub enum TaskCommand {
 	Update(ID, Option<String>, Option<String>, Option<u64>, Option<u16>),
 	List,
 	CheckTime(u64),
-	Json(/*用管道来完成*/),
+	Json/*用管道来完成*/,
 	Exit,
 }
 
@@ -172,7 +172,7 @@ impl SchedulerList {
 					TaskCommand::List => {
 						s.show();
 					},
-					TaskCommand::Json() => {
+					TaskCommand::Json => {
 						let js = s.json();
 						std::thread::sleep(Duration::from_secs(1));
 						println!();

@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{prelude::*,BufReader, BufRead, BufWriter};
 use std::path::Path;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Sender, Receiver};
 
 use crate::sdlr::TaskCommand;
 
@@ -9,14 +9,14 @@ pub struct Store {
     file: Option<File>
 }
 
-enum StoreToken {
+pub enum StoreToken {
     Store(Vec<String>),
     Read,
     Exit
 }
 
 impl Store {
-    fn new(path: &str) -> Self {
+    pub fn new(path: &str) -> Self {
         let pt = Path::new(path);
         let f = match File::open(&pt){
             Ok(f) => Some(f),
@@ -70,7 +70,7 @@ impl Store {
                     StoreToken::Store(json) => {
                         self.vec_to_file(&json);
                     }
-                    StoreToken::Read() => {
+                    StoreToken::Read => {
                         println!("{:?}", self.read_to_vec());
                     }
                     StoreToken::Exit => {
