@@ -158,14 +158,14 @@ fn show(tx: Sender<TaskCommand>) {
 // map -> store
 fn to_json(tx: Sender<TaskCommand>, stx: Sender<StoreToken>) {
 	tx.send(
-		TaskCommand::ToJson(&stx)
+		TaskCommand::ToJson(stx)
 	).unwrap();
 }
 
 // store -> map
 fn from_json(tx: Sender<TaskCommand>, stx: Sender<StoreToken>) {
 	stx.send(
-		StoreToken::Read(&tx)
+		StoreToken::Read(tx)
 	).unwrap();
 }
 
@@ -196,7 +196,7 @@ fn cmd(il: &String, tx: Sender<TaskCommand>, stx: Sender<StoreToken>) {
 			to_json(tx, stx);
 		},
 		"load" => {
-			// from_json();
+			from_json(tx, stx);
 		},
 		_ => {
 			println!("nothing happend..")
@@ -239,8 +239,8 @@ fn store_checker(st: Store, rx:Receiver<StoreToken>) {
 }
 
 fn main() {
-	let (tx, rx): (Sender<TaskCommand>, Receiver<TaskCommand>) = channel();
-	let (stx, srx): (Sender<StoreToken>, Receiver<StoreToken>) = channel();
+	let (tx, rx) = channel::<TaskCommand>();
+	let (stx, srx)= channel::<StoreToken>();
 	let mut line = String::new();
 	let sdr = SchedulerList::new();
 	let g_file = Store::new("scheduler.json");

@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use std::fmt;
 use std::collections::HashMap;
 use std::fmt::{Display};
-use serde_json::to_string;
 use serde::{Deserialize, Serialize};
 use crate::store::StoreToken;
 
@@ -17,14 +16,14 @@ pub struct Scheduler {
 }
 
 type ID = u64;
-pub enum TaskCommand<'a> {
+pub enum TaskCommand {
 	Add(String, String, u64, u16),
 	Remove(ID),
 	Update(ID, Option<String>, Option<String>, Option<u64>, Option<u16>),
 	List,
 	CheckTime(u64),
 	FromJson(Vec<String>),
-	ToJson(&'a Sender<StoreToken<'a>>),
+	ToJson(Sender<StoreToken>),
 	Exit,
 }
 
@@ -137,11 +136,17 @@ impl SchedulerList {
 		let sl = self.sl.lock().unwrap();
 		let mut set: Vec<String> = Vec::new();
 		for (_, v) in &*sl {
-			if let Ok(t) = to_string(&v) {
+			if let Ok(t) = serde_json::to_string(&v) {
 				set.push(t);
 			}
 		}
 		set
+	}
+	fn from_json(&mut self, js: Vec<String>) {
+		for i in js {
+			let s: Scheduler = serde_json::from_str(&i).unwrap();
+			self.add(s);
+		}
 	}
 
 	pub fn monitor_map(mut s: SchedulerList, rx: &Receiver<TaskCommand>) {
@@ -174,10 +179,8 @@ impl SchedulerList {
 						s.show();
 					},
 					TaskCommand::FromJson(json) => {
-						for i in json {
-							println!("{i}");
-							// 解析json，生成scheduler
-						}
+						// 解析json，生成scheduler
+						s.from_json(json)
 					},
 					TaskCommand::ToJson(stx) => {
 						let js = s.json();
