@@ -45,13 +45,11 @@ impl Store {
         let fp = self.file.as_ref().ok_or("文件引用失败")?;
         let reader = BufReader::new(fp);
 
-        for i in reader.lines() {
-            let li = match i {
-                Ok(s) => s,
-                Err(_) => continue
-            };
-            json.push(li);
-        }
+        reader.lines().for_each(|i| {
+            if let Ok(i) = i {
+                json.push(i);
+            }
+        });
         Ok(json)
     }
     fn vec_to_file(&mut self, json: Vec<String>) -> bool {
@@ -59,20 +57,17 @@ impl Store {
             file.seek(SeekFrom::Start(0)).unwrap();
             file.set_len(0).unwrap();
             let mut writer = BufWriter::new(file);
-            for item in json {
-                println!("{}", item);
+            json.iter().for_each(|item| {
                 if let Err(_) = writeln!(writer, "{}", item) {
-                    return false;
+                    println!("{}, write failed", item);
                 }
-                writer.flush().unwrap();
-            }
+            });
+            writer.flush().unwrap();
             true
         } else {
             false
         }
     }
-    // 使用channel来完成
-    // 这种交互方式好吗？
     pub fn monitor_store(mut self, rx: &Receiver<StoreToken>) {
         loop {
             while let Ok(i) = rx.recv() {
